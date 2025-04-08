@@ -1,21 +1,13 @@
-// Author:         
-// Net ID:         
-// Date:           
-// Assignment:     Lab 3
-//----------------------------------------------------------------------//
+#ifndef LCD_H__
+#define LCD_H__
 
-#ifndef LCD_H
-#define LCD_H
+#include "common.h"
 
-#include <avr/io.h>
+void init_LCD(void);
+void send_cmd(uint8_t command, uint16_t delay);
+void move_cursor(uint8_t x, uint8_t y);
+void write_char(char character);
+void write_str(const char *string);
+void clear_LCD(void);
 
-void initLCD();
-void fourBitCommandWithDelay(unsigned char data, unsigned int delay);
-void eightBitCommandWithDelay(unsigned char command, unsigned int delay);
-void writeCharacter(unsigned char character);
-void writeString(const char *string);
-void moveCursor(unsigned char x, unsigned char y);
-void initLCDPins();
-void initLCDProcedure();
-
-#endif
+#endif // LCD_H__

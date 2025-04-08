@@ -1,47 +1,26 @@
 #include "lcd.h"
-#include "timer.h"
-#include <util/delay.h>
 
-
-void initLCDPins()
-{
-    
+void init_LCD(void) {
+	
+	TODO();
 }
 
-void fourBitCommandWithDelay(unsigned char data, unsigned int delay)
-{
-
+void write_char(char character) {
+	TODO();
 }
 
-
-void eightBitCommandWithDelay(unsigned char command, unsigned int delay)
-{
-
+void write_str(const char *string) {
+	TODO();
 }
 
-void writeCharacter(unsigned char character)
-{
-
+void send_cmd(uint8_t command, uint16_t delay) {
+	TODO();
 }
 
-void writeString(const char *string)
-{
-    
+void move_cursor(uint8_t x, uint8_t y) {
+	TODO();
 }
 
-
-void moveCursor(unsigned char x, unsigned char y)
-{
-   
-}
-
-
-void initLCDProcedure()
-{
-    
-}
-
-void initLCD()
-{
-
+void clear_LCD(void) {
+	TODO();
 }
