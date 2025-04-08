@@ -1,7 +1,6 @@
 #include "switch.h"
 #include <avr/io.h>
 
-void initSwitch()
-{
+void init_switch_pin(void) {
     
 }
