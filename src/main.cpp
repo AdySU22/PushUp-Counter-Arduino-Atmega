@@ -44,4 +44,3 @@ ISR(INFRARED_SENSOR_PCINT_VECTOR) {
 	}
 	ir_sensor_state = !ir_sensor_state;
 }
-

@@ -10,7 +10,6 @@
 #define LEFT_TOUCH_SENSOR_DDR DDRB
 #define RIGHT_TOUCH_SENSOR_DDR DDRB
 #define SPI_DDR DDRB
-#define I2C_DDR DDRD
 
 #endif // DDRS__
 
@@ -48,7 +47,7 @@
 /** @brief digital pin 50 (D50)*/
 #define SPI_MISO_PIN_NUMBER PB3
 /** @brief digital pin 20 (D20)*/
-#define LCD_II2CSCL_PIN_NUMBER PD0
+#define LCD_I2C_SCL_PIN_NUMBER PD0
 /** @brief digital pin 21 (D21) */
 #define LCD_I2C_SDA_PIN_NUMBER PD1
 /** @brief digital pin 51 (D51) */
