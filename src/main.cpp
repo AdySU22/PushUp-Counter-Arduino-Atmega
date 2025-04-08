@@ -1,8 +1,10 @@
 #include <Arduino.h>
 #include <avr/io.h>
 #include "led.h"
-#include "switch.h"
-#include "timer.h"
+#include "power&reset_switch.h"
+// #include "timer.h"
+#include "server.h"
+
 #include "lcd.h"
 
 typedef enum
