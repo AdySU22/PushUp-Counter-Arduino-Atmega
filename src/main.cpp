@@ -25,6 +25,8 @@ int16_t main(void) {
 	init_touch_sensor_pins();
 	init_infrared_sensor_pin();
 	init_server_communication();
+	init_lcd();
+	sei();
 	while (1) {
 		
 	}
