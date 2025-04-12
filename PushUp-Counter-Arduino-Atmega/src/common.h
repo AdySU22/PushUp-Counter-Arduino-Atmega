@@ -1,5 +1,6 @@
 #ifndef COMMON_H__
 #define COMMON_H__
+
 #include <avr/io.h>
 #define TODO() static_assert(false, "TODO: implementation needed in " __FILE__);
 
@@ -57,3 +58,5 @@
 #define SPI_CS_PIN_NUMBER PB4
 
 #endif // PIN_NUMBERS__
+
+#endif // COMMON_H__
