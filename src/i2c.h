@@ -1,109 +1,123 @@
 #ifndef I2C_H__
 #define I2C_H__
 
-#include <avr/io.h>
+#include "common.h"
 #include <avr/interrupt.h>
+#include "timer.h"
+// --- Configuration ---
 
-#include <Wire.h>
+/** @brief Maximum size of the I2C transmit/receive buffer */
+#define I2C_BUFFER_LENGTH 32
 
+// --- LCD Specific Address ---
+// Choose the correct address for your specific LCD backpack module
+#define LCD_ADDRESS_DEFAULT     0x27 // Common default
+#define LCD_ADDRESS_ALTERNATIVE 0x3F // Common alternative (PCF8574A)
+#define LCD_ADDRESS LCD_ADDRESS_DEFAULT
+// #define LCD_ADDRESS LCD_ADDRESS_ALTERNATIVE // Example: Using the alternative
+
+// --- I2C Status Codes ---
+// (User-provided status codes are kept as is)
 #ifndef I2C_STATUS__
 #define I2C_STATUS__
 
-// Custom error code
-#define I2C_NO_ERROR 0xFF
+// Custom status code (Internal library state)
+
+#define I2C_STATE_IDLE 0
+#define I2C_STATE_BUSY 1
+#define I2C_STATE_ERROR_START_TIMEOUT 2
+#define I2C_STATE_ERROR_NACK_ADDR 3
+#define I2C_STATE_ERROR_NACK_DATA 4
+#define I2C_STATE_ERROR_ARB_LOST 5
+#define I2C_STATE_ERROR_BUS_ERROR 6
+#define I2C_STATE_ERROR_OTHER 7
 
 #define I2C_STATUS_BIT_MASK 0xF8
-#define I2C_STATUS (TWSR * I2C_STATUS_BIT_MASK)
+#define I2C_STATUS (TWSR & I2C_STATUS_BIT_MASK)
 
 // General status codes
+#define I2C_START                   0x08
+#define I2C_REP_START               0x10
+#define I2C_ARB_LOST                0x38
+// Master Transmitter Mode Status Codes
+#define I2C_MT_SLA_ACK              0x18
+#define I2C_MT_SLA_NACK             0x20
+#define I2C_MT_DATA_ACK             0x28
+#define I2C_MT_DATA_NACK            0x30
+// Master Receiver Mode Status Codes
+#define I2C_MR_SLA_ACK              0x40
+#define I2C_MR_SLA_NACK             0x48
+#define I2C_MR_DATA_ACK             0x50
+#define I2C_MR_DATA_NACK            0x58
+// Slave Transmitter Mode Status Codes (Not implemented in this master-only library)
+#define I2C_ST_SLA_ACK              0xA8
+#define I2C_ST_ARB_LOST_SLA_ACK     0xB0
+#define I2C_ST_DATA_ACK             0xB8
+#define I2C_ST_DATA_NACK            0xC0
+#define I2C_ST_LAST_DATA_ACK        0xC8
+// Slave Receiver Mode Status Codes (Not implemented in this master-only library)
+#define I2C_SR_SLA_ACK              0x60
+#define I2C_SR_ARB_LOST_SLA_ACK     0x68
+#define I2C_SR_GCALL_ACK            0x70
+#define I2C_SR_ARB_LOST_GCALL_ACK   0x78
+#define I2C_SR_DATA_ACK             0x80
+#define I2C_SR_DATA_NACK            0x88
+#define I2C_SR_GCALL_DATA_ACK       0x90
+#define I2C_SR_GCALL_DATA_NACK      0x98
+#define I2C_SR_STOP_REP_START       0xA0
+// Miscellaneous Status Codes
+#define I2C_BUS_ERROR               0x00
+#define I2C_NO_INFO                 0xF8
 
-/** @brief 0x08: A START condition has been transmitted */
-#define I2C_START                           0x08
-/** @brief 0x10: A repeated START condition has been transmitted */
-#define I2C_REP_START                       0x10
-/** @brief 0x38: Arbitration lost */
-#define I2C_ARB_LOST                        0x38
-
-/* Master Transmitter Mode Status Codes */
-
-/** @brief 0x18: SLA+W has been transmitted; ACK has been received */
-#define I2C_MT_SLA_ACK                      0x18
-/** @brief 0x20: SLA+W has been transmitted; NACK has been received */
-#define I2C_MT_SLA_NACK                     0x20
-/** @brief 0x28: Data byte has been transmitted; ACK has been received */
-#define I2C_MT_DATA_ACK                     0x28
-/** @brief 0x30: Data byte has been transmitted; NACK has been received */
-#define I2C_MT_DATA_NACK                    0x30
-/* Note: 0x38 I2C_ARB_LOST also applies here */
-
-/* Master Receiver Mode Status Codes */
-
-/** @brief 0x40: SLA+R has been transmitted; ACK has been received */
-#define I2C_MR_SLA_ACK                      0x40
-/** @brief 0x48: SLA+R has been transmitted; NACK has been received */
-#define I2C_MR_SLA_NACK                     0x48
-/** @brief 0x50: Data byte has been received; ACK has been returned */
-#define I2C_MR_DATA_ACK                     0x50
-/** @brief 0x58: Data byte has been received; NACK has been returned */
-#define I2C_MR_DATA_NACK                    0x58
-/* Note: 0x38 I2C_ARB_LOST also applies here */
-
-/* Slave Transmitter Mode Status Codes */
-
-/** @brief 0xA8: Own SLA+R has been received; ACK has been returned */
-#define I2C_ST_SLA_ACK                      0xA8
-/** @brief 0xB0: Arbitration lost in SLA+R/W as master; own SLA+R received; ACK returned */
-#define I2C_ST_ARB_LOST_SLA_ACK             0xB0
-/** @brief 0xB8: Data byte in TWDR has been transmitted; ACK has been received */
-#define I2C_ST_DATA_ACK                     0xB8
-/** @brief 0xC0: Data byte in TWDR has been transmitted; NACK has been received */
-#define I2C_ST_DATA_NACK                    0xC0
-/** @brief 0xC8: Last data byte in TWDR transmitted (TWEA = 0); ACK has been received */
-#define I2C_ST_LAST_DATA_ACK                0xC8
-
-/* Slave Receiver Mode Status Codes */
-
-/** @brief 0x60: Own SLA+W has been received; ACK has been returned */
-#define I2C_SR_SLA_ACK                      0x60
-/** @brief 0x68: Arbitration lost in SLA+R/W as master; own SLA+W received; ACK returned */
-#define I2C_SR_ARB_LOST_SLA_ACK             0x68
-/** @brief 0x70: General call address has been received; ACK has been returned */
-#define I2C_SR_GCALL_ACK                    0x70
-/** @brief 0x78: Arbitration lost in SLA+R/W as master; general call received; ACK returned */
-#define I2C_SR_ARB_LOST_GCALL_ACK           0x78
-/** @brief 0x80: Previously addressed with own SLA+W; data received; ACK returned */
-#define I2C_SR_DATA_ACK                     0x80
-/** @brief 0x88: Previously addressed with own SLA+W; data received; NACK returned */
-#define I2C_SR_DATA_NACK                    0x88
-/** @brief 0x90: Previously addressed with general call; data received; ACK returned */
-#define I2C_SR_GCALL_DATA_ACK               0x90
-/** @brief 0x98: Previously addressed with general call; data received; NACK returned */
-#define I2C_SR_GCALL_DATA_NACK              0x98
-/** @brief 0xA0: A STOP condition or repeated START condition received while addressed */
-#define I2C_SR_STOP_REP_START               0xA0
-
-/* Miscellaneous Status Codes */
-
-/** @brief 0x00: Bus error due to illegal START or STOP condition */
-#define I2C_BUS_ERROR                       0x00
-/** @brief 0xF8: No relevant state information available; TWINT = 0 */
-#define I2C_NO_INFO                         0xF8
-
-#endif // I2C_STATUS_H__
-
-inline void init_i2c(void);
-inline void start_i2c(void);
-inline void stop_i2c(void);
-inline bool write_byte(uint8_t b);
+#endif // I2C_STATUS__
 
 
-// Buffers
-#define MAX_BUFFER_LENGTH 32
+// --- Public Function Prototypes ---
 
-static volatile uint8_t i2c_err = I2C_NO_ERROR;
-static uint8_t tx_buffer[MAX_BUFFER_LENGTH] = { };
-static volatile uint8_t tx_buffer_idx = 0, tx_buffer_len = 0;  
-static uint8_t rx_buffer[MAX_BUFFER_LENGTH] = { };
-static volatile uint8_t rx_buffer_idx = 0, rx_buffer_len = 0;
+/**
+ * @brief Initializes the I2C hardware (TWI) peripheral.
+ * Configures SCL frequency, enables TWI, and enables TWI interrupt.
+ * Must be called before any other I2C operations.
+ * Remember to enable global interrupts (`sei()`) after calling this.
+ */
+void init_i2c(void);
+
+/**
+ * @brief Disables the I2C hardware (TWI) peripheral and interrupt.
+ */
+void deinit_i2c(void);
+
+/**
+ * @brief Initiates transmitting data to a specific I2C slave device.
+ * This function is non-blocking. It sets up the transfer and returns immediately.
+ * The actual transmission occurs via interrupts.
+ *
+ * @param data Data to transmit.
+ * @param send_stop If true, a STOP condition will be sent after transmission. If false,
+ * a Repeated START might follow (e.g., for read operation after write).
+ * @return true if the I2C bus was idle and the transmission was initiated.
+ * @return false if the I2C bus is busy or invalid arguments provided.
+ */
+bool send_byte(const uint8_t data, bool send_stop);
+
+/**
+ * @brief Checks if the I2C peripheral is currently busy with a transaction.
+ *
+ * @return true if busy, false if idle or an error occurred.
+ */
+bool i2c_is_busy(void);
+
+/**
+ * @brief Generates an I2C STOP condition manually.
+ * Usually called internally, but can be used to ensure the bus is released
+ * if a transfer was started with send_stop=false and no further action followed.
+ * Note: This is blocking for a short period while STOP is sent.
+ */
+void stop_i2c(void);
+
+
+// Static variables
+static volatile uint8_t i2c_status;       // Current state of the I2C FSM
+
 
 #endif // I2C_H__

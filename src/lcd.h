@@ -1,19 +1,22 @@
-#ifndef LCD_H__
+#ifndef LCD_H__ 
 #define LCD_H__
 
 #include "common.h"
 #include "i2c.h"
 #include "timer.h"
+#include <avr/interrupt.h>
 
-#define LCD_ADDRESS_DEFAULT 0x27 // Default
-#define LCD_ADDRESS_ALTERNATIVE 0x3F // Alternative
-#define LCD_ADDRESS LCD_ADDRESS_DEFAULT 
+#define LCD_REGISTER_SELECT_BIT_MASK 0x1
+#define LCD_WRITE_READ_BIT_MASK 0x2
+#define LCD_ENABLE_BIT_MASK 0x4
+#define LCD_BACKLIGHT_BIT_MASK 0x8
 
 void init_lcd(void);
-void send(uint8_t value, uint16_t delay);
-void move_cursor(uint8_t x, bool y);
-void write_char(char character);
-void write_str(const char *string, uint8_t len);
+void send_bits(uint8_t data, uint8_t flags);
+void move_cursor(uint8_t y, uint8_t x);
+void write_char(uint8_t character);
+void send_command(uint8_t command);
+void write_str(const char* str);
 void clear_screen(void);
 
-#endif // LCD_H__
+#endif
