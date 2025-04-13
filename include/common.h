@@ -1,3 +1,6 @@
+#ifndef COMMON_H__
+#define COMMON_H__
+
 #include <avr/io.h>
 #define TODO() static_assert(false, "TODO: implementation needed in " __FILE__);
 
@@ -182,3 +185,5 @@
 #endif // LEFT_TOUCH_SENSOR_PCIE_NUMBER == RIGHT_TOUCH_SENSOR_PCIE_NUMBER
 
 #endif // PCINT_VECTORS__
+
+#endif // COMMON_H__
