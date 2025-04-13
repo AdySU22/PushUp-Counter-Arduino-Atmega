@@ -3,8 +3,11 @@
 
 #include "common.h"
 
+<<<<<<< HEAD:src/timer.h
 #define I2C_TIMER_PRESCALER ((1 << CS31))
 
+=======
+>>>>>>> upstream/main:PushUp-Counter-Arduino-Atmega/src/timer.h
 void init_timer0(void);
 void init_timer1(void);
 void init_timer3(void);

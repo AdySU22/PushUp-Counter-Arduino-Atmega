@@ -56,4 +56,3 @@ void delay_s(uint16_t t_s) {
 	}
 	TCCR1B = 1 << WGM12;
 }
-
