@@ -1,7 +1,11 @@
 #ifndef CLIENT_H__
 #define CLIENT_H__
 
-#include "common.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <lwip/sockets.h>
+#include <lwip/api.h>
 
 extern int16_t err_number;
 
