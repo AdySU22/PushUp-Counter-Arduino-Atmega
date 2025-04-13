@@ -22,7 +22,6 @@
 #define I2C_STATUS__
 
 // Custom status code (Internal library state)
-
 #define I2C_STATE_IDLE 0
 #define I2C_STATE_BUSY 1
 #define I2C_STATE_ERROR_START_TIMEOUT 2
@@ -71,14 +70,11 @@
 
 #endif // I2C_STATUS__
 
-
-// --- Public Function Prototypes ---
-
 /**
  * @brief Initializes the I2C hardware (TWI) peripheral.
  * Configures SCL frequency, enables TWI, and enables TWI interrupt.
  * Must be called before any other I2C operations.
- * Remember to enable global interrupts (`sei()`) after calling this.
+ * Remember to enable global interrupts (sei()) after calling this.
  */
 void init_i2c(void);
 
@@ -117,7 +113,8 @@ void stop_i2c(void);
 
 
 // Static variables
-static volatile uint8_t i2c_status;       // Current state of the I2C FSM
 
+// Current state of the I2C FSM
+static volatile uint8_t i2c_status;       
 
 #endif // I2C_H__

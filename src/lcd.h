@@ -13,7 +13,7 @@
 
 void init_lcd(void);
 void send_bits(uint8_t data, uint8_t flags);
-void move_cursor(uint8_t y, uint8_t x);
+void move_cursor(bool y, uint8_t x);
 void write_char(uint8_t character);
 void send_command(uint8_t command);
 void write_str(const char* str);

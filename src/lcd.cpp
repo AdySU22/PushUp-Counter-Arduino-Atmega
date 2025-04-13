@@ -34,8 +34,8 @@ void send_bits(uint8_t data, uint8_t flags) {
     // Pulse Enable Low
     packet &= ~LCD_ENABLE_BIT_MASK;
     send_byte(packet, true); // Send stop after this final part
-    while (i2c_is_busy());
-     delay_us_sync(50); // Delay after command/data write
+    while (i2c_is_busy()) {}
+	delay_us_sync(50); // Delay after command/data write
 }
 
 // Send a command byte to the LCD

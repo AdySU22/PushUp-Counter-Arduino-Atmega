@@ -77,7 +77,7 @@ void stop_i2c(void) {
     // This is a small blocking delay, unavoidable for STOP.
     // Add a timeout to prevent infinite loop in case of hardware issues
     uint16_t timeout = 0xFFFF; // Adjust timeout counter as needed
-    while((TWCR & (1 << TWSTO)) && --timeout);
+    while((TWCR & (1 << TWSTO)) && --timeout) {};
 
     // Reset state after stop is sent or timeout
     if (timeout == 0) {
