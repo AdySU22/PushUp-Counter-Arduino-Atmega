@@ -22,6 +22,12 @@ extern bool async;
 void init_spi(const bool master);
 void init_spi(const bool async, const bool master);
 
-bool master_transmit_sync(uint8_t data);
+void toggle_async(void);
+void toggle_mode(const bool set_async);
+
+bool master_transmit_sync(const uint8_t *data, const uint8_t len);
+void master_transmit_async(const uint8_t *data, const uint8_t len);
+bool slave_receive_sync(uint8_t *data, const uint8_t len);
+void slave_receive_async(const uint8_t len);
 
 #endif //SPI_H__

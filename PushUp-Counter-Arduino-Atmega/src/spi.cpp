@@ -48,7 +48,7 @@ bool master_transmit_sync(uint8_t *data, uint8_t len) {
 	return true;
 }
 
-void master_transmit_async(uint8_t *data, uint8_t len) {
+void master_transmit_async(const uint8_t *data, const uint8_t len) {
 	for (uint8_t i = 0; i < len; ++i) {
 		tx_buffer[tx_buffer_end++] = data[i];
 	}
@@ -57,19 +57,18 @@ void master_transmit_async(uint8_t *data, uint8_t len) {
 	TWDR = tx_buffer[tx_buffer_start++];
 }
 
-bool slave_receive_sync(uint8_t len) {
+bool slave_receive_sync(uint8_t *data, uint8_t len) {
 	for (uint8_t i = 0; i < len; i++) {
 		// Wait for byte transfer
 		while(!(SPSR & (1 << SPIF))) {
 			// delay_ms(100);
-			
 		};
-		rx_buffer[i] = SPDR;
+		data[i] = SPDR;
 	}
 	return true;
 }
 
-void slave_receive_async(uint8_t len) {
+void slave_receive_async(const uint8_t len) {
 	rx_buffer_end += len;
 	spi_mode = SPI_MODE_RECEIVE;
 	// TODO: signal wifi module to reply
