@@ -4,6 +4,21 @@
 #include <avr/io.h>
 #define TODO() static_assert(false, "TODO: implementation needed in " __FILE__);
 
+// Debug print macros
+#ifdef Arduino_h
+
+#define DEBUG_PRINT(...) Serial.print(__VA_ARGS__)
+#define DEBUG_PRINTLN(...) Serial.println(__VA_ARGS__)
+#else
+
+#define DEBUG_PRINT(...) (void)(__VA_ARGS__)
+#define DEBUG_PRINTLN(...) (void)(__VA_ARGS__)
+#ifndef HEX
+#define HEX 16
+#endif // HEX
+
+#endif // Arduino_h
+
 // DDRs
 #ifndef DDRS__
 #define DDRS__
@@ -47,8 +62,8 @@
 #define LEFT_TOUCH_SENSOR_PIN_NUMBER PB6
 /** @brief digital pin 11 (D11) */
 #define RIGHT_TOUCH_SENSOR_PIN_NUMBER PB5
-/** @brief digital pin 53 (D53)*/
 
+/** @brief digital pin 53 (D53)*/
 #define SPI_SS_PIN_NUMBER PB0
 /** @brief digital pin 52 (D52) */
 #define SPI_SCK_PIN_NUMBER PB1

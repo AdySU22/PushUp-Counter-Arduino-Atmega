@@ -9,11 +9,11 @@ void send_bits(uint8_t data, uint8_t flags) {
         // You could add a timeout here
     }
     // Handle previous errors if necessary
-    if(i2c_status != I2C_STATE_IDLE) {
+    if(i2c_status != I2C_IDLE) {
         // Log error, try to re-init I2C, etc.
         init_i2c(); // Attempt re-initialization
 				delay_ms(10);
-				if(i2c_status != I2C_STATE_IDLE) return; // Give up if re-init failed
+				if(i2c_status != I2C_IDLE) return; // Give up if re-init failed
     }
 
     // Set the data pins and control pins (RS, RW, EN, Backlight)
@@ -67,11 +67,11 @@ void init_lcd(void) {
     delay_us_sync(100);
 
     send_command(0x28); // Function Set: 4-bit, 2 lines, 5x8 font
-    send_command(0x08); // Display OFF, Cursor OFF, Blink OFF
-    send_command(0x01); // Clear Display
+    send_command(0x8); // Display OFF, Cursor OFF, Blink OFF
+    send_command(0x1); // Clear Display
     delay_ms(2);           // Clear display takes longer
-    send_command(0x06); // Entry Mode Set: Increment cursor, no shift
-    send_command(0x0F); // Display ON, Cursor OFF, Blink OFF
+    send_command(0x6); // Entry Mode Set: Increment cursor, no shift
+    send_command(0xF); // Display ON, Cursor OFF, Blink OFF
 }
 
 void move_cursor(bool y, uint8_t x) {

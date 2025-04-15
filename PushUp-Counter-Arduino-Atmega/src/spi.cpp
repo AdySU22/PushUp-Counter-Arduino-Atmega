@@ -1,45 +1,104 @@
 #include "spi.h"
 
-void init_spi(const bool master = true) {
+volatile uint8_t tx_buffer[BUFFER_LENGTH] = {}, tx_buffer_start = 0, tx_buffer_end = 0;
+volatile uint8_t rx_buffer[BUFFER_LENGTH] = {}, rx_buffer_start = 0, rx_buffer_index = 0, rx_buffer_end = 0;
+volatile bool is_master = 0;
+volatile uint8_t spi_mode = 0;
+bool async = 0;
+
+void init_spi(const bool master) {
+	init_spi(false, master);
+}
+
+void init_spi(const bool async_mode, const bool master) {
 	is_master = master;
+	async = async_mode;
 	if (master) {
 		// Set MOSI pin as output
-		SPI_DDR = (SPI_MOSI_PIN_MASK) | (SPI_SCK_PIN_MASK);
+		SPI_DDR |= (SPI_MOSI_PIN_MASK) | (SPI_SCK_PIN_MASK) | (SPI_CS_PIN_MASK);
 		// Enable SPI, Master, set clock rate fck/16
-		SPCR = (1 << SPIE) | (1 << SPE) | (1 << MSTR) | (1 << SPR0);
+		SPCR |= (1 << SPIE) | (async << SPE) | (1 << MSTR) | (1 << SPR0);
 	} else {
 		// Set MISO pin as output
-		SPI_DDR = (SPI_MISO_PIN_MASK);
-		// Enable SPI, Master, set clock rate fck/16
-		SPCR = (1 << SPIE) | (1 << SPE);
+		SPI_DDR |= (SPI_MISO_PIN_MASK);
+		// Enable SPI, Slave
+		SPCR |= (1 << SPIE) | (async << SPE);
 	}
 }
 
-void toggle_mode(void) {
-	is_master ^= is_master;
-	// Either reset SS pin as master
-	// or drive SS pin low to activate slave SPI
-	SPI_PORT &= ~SPI_SS_PIN_MASK;
-	SPCR ^= (1 << MSTR);
+void toggle_async(void) {
+	async = !async;
+	SPCR ^= (1 << SPIE);
 }
 
-bool master_transmit(uint8_t *data, uint8_t len) {
+void toggle_mode(const bool set_async = false) {
+	is_master ^= is_master;
+	SPI_DDR ^= SPI_CS_PIN_MASK;
+	SPI_PORT |= SPI_CS_PIN_MASK;
+	async = set_async;
+	SPCR = ((SPCR ^ (1 << MSTR)) & ~(1 << SPIE)) | (async << SPIE);
+}
+
+bool master_transmit_sync(uint8_t *data, uint8_t len) {
 	for (uint8_t i = 0; i < len; i++) {
 		SPDR = data[i];
+		// Poll for every byte
 		while (!(SPSR & (1 << SPIF))) {}
 	}
 	return true;
 }
 
-bool slave_receive(uint8_t len) {
+void master_transmit_async(uint8_t *data, uint8_t len) {
+	for (uint8_t i = 0; i < len; ++i) {
+		tx_buffer[tx_buffer_end++] = data[i];
+	}
+	spi_mode = SPI_MODE_SEND;
+	SPI_PORT &= ~SPI_CS_PIN_MASK;
+	TWDR = tx_buffer[tx_buffer_start++];
+}
+
+bool slave_receive_sync(uint8_t len) {
 	for (uint8_t i = 0; i < len; i++) {
-		while(!(SPSR & (1 << SPIF))) {};
+		// Wait for byte transfer
+		while(!(SPSR & (1 << SPIF))) {
+			// delay_ms(100);
+			
+		};
 		rx_buffer[i] = SPDR;
 	}
 	return true;
 }
 
+void slave_receive_async(uint8_t len) {
+	rx_buffer_end += len;
+	spi_mode = SPI_MODE_RECEIVE;
+	// TODO: signal wifi module to reply
+}
+
 // SPI Transfer complete interrupt / handler
 ISR(SPI_STC_vect) {
-	
+	switch (spi_mode) {
+		case SPI_MODE_SEND: {
+			if (tx_buffer_start != tx_buffer_end) {
+				TWDR = tx_buffer[tx_buffer_start++];
+			} else {
+				SPI_PORT |= SPI_CS_PIN_MASK;
+				spi_mode = SPI_MODE_READY;
+			}
+		} break;
+		case SPI_MODE_RECEIVE: {
+			if (rx_buffer_start != rx_buffer_end) {
+				
+			} else {
+				spi_mode = SPI_MODE_READY;
+			}
+		} break;
+		case SPI_MODE_READY: {
+
+		} break;
+		default:
+			DEBUG_PRINT("Got error ");
+			DEBUG_PRINTLN(spi_mode);
+			break;
+	}
 }

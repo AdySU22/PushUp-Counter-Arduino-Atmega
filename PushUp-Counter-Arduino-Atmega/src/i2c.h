@@ -22,14 +22,14 @@
 #define I2C_STATUS__
 
 // Custom status code (Internal library state)
-#define I2C_STATE_IDLE 0
-#define I2C_STATE_BUSY 1
-#define I2C_STATE_ERROR_START_TIMEOUT 2
-#define I2C_STATE_ERROR_NACK_ADDR 3
-#define I2C_STATE_ERROR_NACK_DATA 4
-#define I2C_STATE_ERROR_ARB_LOST 5
-#define I2C_STATE_ERROR_BUS_ERROR 6
-#define I2C_STATE_ERROR_OTHER 7
+#define I2C_IDLE 0
+#define I2C_BUSY 1
+#define I2C_ERROR_START_TIMEOUT 2
+#define I2C_ERROR_NACK_ADDR 3
+#define I2C_ERROR_NACK_DATA 4
+#define I2C_ERROR_ARB_LOST 5
+#define I2C_ERROR_BUS_ERROR 6
+#define I2C_ERROR_OTHER 7
 
 #define I2C_STATUS_BIT_MASK 0xF8
 #define I2C_STATUS (TWSR & I2C_STATUS_BIT_MASK)
@@ -118,3 +118,86 @@ void stop_i2c(void);
 static volatile uint8_t i2c_status;       
 
 #endif // I2C_H__
+
+/**
+ * TWDR = data;
+ * TWCR = (1 << TWEN) | (1 << TWEA) | (1 << TWIE) | [(1 << TWSTA) | (1 << TWSTO)] | (1 << TWINT);
+ * while (TWCR & (1 << TWINT));
+ * uint8_t status = (TWSR & 0xF8);
+ */
+
+/** 
+ * 1. Setup
+ * set prescaler
+ * TWSR = (1 << TWPS0);
+ * 
+ * set bit rate
+ * TWBR = 72;
+ * 
+ * send start bit
+ * TWCR = (1 << TWEN) | (1 << TWEA) | (1 << TWIE) | (1 << TWSTA) | (1 << TWINT);
+ *          ENABLE       ENABLE ACK   ENABLE INT     START BIT         SEND
+ * 
+ * poll / wait until transaction finished
+ * while (TWCR & (1 << TWINT));
+ * 
+ * check status
+ * switch (TWSR & 0xF8) {
+ * 		...
+ * }
+ * if START is ACK'ed:
+ * 
+ * 2. Send SLA + W
+ * set/write slave address in TWDR
+ * TWDR = SLA+W/R [(0x27 << 1) | 0 / 1]
+ *                     SLA       W   R
+ * 
+ * send slave address
+ * TWCR = (1 << TWEN) | (1 << TWEA) | (1 << TWIE) | (1 << TWINT);
+ * 
+ * poll / wait until transaction finished
+ * while (TWCR & (1 << TWINT));
+ * 
+ * check status
+ * switch (TWSR & 0xF8) {
+ * 		...
+ * }
+ * 
+ * if START is ACK'ed:
+ * 
+ * 3. Send data
+ * 
+ * while (data_is_available) {
+ * 		uint8_t data = ...;
+ * 		TWDR = data;
+ * 		TWCR = (1 << TWEN) | (1 << TWEA) | (1 << TWIE) | (1 << TWINT);
+ * 		
+ * 		poll / wait until transaction finished
+ * 		while (TWCR & (1 << TWINT));
+ * 		
+ * 		check status
+ * 		switch (TWSR & 0xF8) {
+ * 				...
+ * 		}
+ * 		if START is ACK'ed:
+ * 		...
+ * 		else:
+ * 		...
+ * }
+ * 
+ * 4. Terminate connection
+ * 
+ * TWCR = (1 << TWEN) | (1 << TWEA) | (1 << TWIE) | (1 << TWSTO) | (1 << TWINT);
+ *                                                    STOP BIT
+ * 
+ * poll / wait until stop bit is cleared / set to 0
+ * while (TWCR & (1 << TWSTO));
+ * 
+ * done
+ * 
+ * else: 
+ * retry step 1/2 
+ * 
+ * else:
+ * retry step 1
+ */
