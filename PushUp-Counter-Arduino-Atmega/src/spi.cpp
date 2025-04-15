@@ -1,10 +1,11 @@
 #include "spi.h"
 
-volatile uint8_t tx_buffer[BUFFER_LENGTH] = {}, tx_buffer_start = 0, tx_buffer_end = 0;
-volatile uint8_t rx_buffer[BUFFER_LENGTH] = {}, rx_buffer_start = 0, rx_buffer_index = 0, rx_buffer_end = 0;
-volatile bool is_master = 0;
-volatile uint8_t spi_mode = 0;
-bool async = 0;
+// State variables
+static volatile uint8_t tx_buffer[BUFFER_LENGTH], tx_buffer_start, tx_buffer_end;
+static volatile uint8_t *rx_buffer, rx_buffer_start, rx_buffer_end;
+static volatile bool is_master;
+static volatile uint8_t spi_mode; 
+static bool async;
 
 void init_spi(const bool master) {
 	init_spi(false, master);
@@ -39,7 +40,7 @@ void toggle_mode(const bool set_async = false) {
 	SPCR = ((SPCR ^ (1 << MSTR)) & ~(1 << SPIE)) | (async << SPIE);
 }
 
-bool master_transmit_sync(uint8_t *data, uint8_t len) {
+bool master_transmit_sync(const uint8_t *data, const uint8_t len) {
 	for (uint8_t i = 0; i < len; i++) {
 		SPDR = data[i];
 		// Poll for every byte
@@ -57,7 +58,7 @@ void master_transmit_async(const uint8_t *data, const uint8_t len) {
 	TWDR = tx_buffer[tx_buffer_start++];
 }
 
-bool slave_receive_sync(uint8_t *data, uint8_t len) {
+bool slave_receive_sync(uint8_t *data, const uint8_t len) {
 	for (uint8_t i = 0; i < len; i++) {
 		// Wait for byte transfer
 		while(!(SPSR & (1 << SPIF))) {
@@ -68,8 +69,10 @@ bool slave_receive_sync(uint8_t *data, uint8_t len) {
 	return true;
 }
 
-void slave_receive_async(const uint8_t len) {
-	rx_buffer_end += len;
+void slave_receive_async(uint8_t data[256], const uint8_t len) {
+	rx_buffer = data;
+	rx_buffer_end = len;
+	rx_buffer_start = 0;
 	spi_mode = SPI_MODE_RECEIVE;
 	// TODO: signal wifi module to reply
 }
@@ -87,8 +90,9 @@ ISR(SPI_STC_vect) {
 		} break;
 		case SPI_MODE_RECEIVE: {
 			if (rx_buffer_start != rx_buffer_end) {
-				
+				rx_buffer[rx_buffer_start++] = TWDR;
 			} else {
+				
 				spi_mode = SPI_MODE_READY;
 			}
 		} break;
