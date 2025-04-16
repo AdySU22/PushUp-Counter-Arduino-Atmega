@@ -3,105 +3,139 @@
 // State variables
 static volatile uint8_t tx_buffer[BUFFER_LENGTH], tx_buffer_start, tx_buffer_end;
 static volatile uint8_t *rx_buffer, rx_buffer_start, rx_buffer_end;
-static volatile bool is_master;
-static volatile uint8_t spi_mode; 
-static bool async;
+volatile uint8_t spi_status = SPI_STATE_UNINITIALIZED;
 
-void init_spi(const bool master) {
-	init_spi(false, master);
+#define SPI_DUMMY_BYTE 0
+
+void init_spi(void) {
+	init_spi(false);
 }
 
-void init_spi(const bool async_mode, const bool master) {
-	is_master = master;
-	async = async_mode;
-	if (master) {
-		// Set MOSI pin as output
-		SPI_DDR |= (SPI_MOSI_PIN_MASK) | (SPI_SCK_PIN_MASK) | (SPI_CS_PIN_MASK);
-		// Enable SPI, Master, set clock rate fck/16
-		SPCR |= (1 << SPIE) | (async << SPE) | (1 << MSTR) | (1 << SPR0);
-	} else {
-		// Set MISO pin as output
-		SPI_DDR |= (SPI_MISO_PIN_MASK);
-		// Enable SPI, Slave
-		SPCR |= (1 << SPIE) | (async << SPE);
-	}
+void init_spi(const bool async_mode) {
+	// Set MOSI pin as output and MISO pin as input
+	SPI_DDR = (SPI_DDR & ~SPI_MISO_PIN_MASK) | (SPI_MOSI_PIN_MASK) | (SPI_SCK_PIN_MASK) | (SPI_CS_PIN_MASK);
+	SPI_PORT |= (SPI_CS_PIN_MASK);
+	// Enable SPI, Master, set clock rate fck/16
+	SPCR = (1 << MSTR) | (1 << SPR0);
+	SPCR |= (1 << SPE) | (async_mode << SPIE);
+	spi_status = SPI_STATE_IDLE_SYNC | async_mode;
+	volatile uint8_t t __attribute__((unused)) = SPSR;
+	SPDR = 0;
 }
 
-void toggle_async(void) {
-	async = !async;
-	SPCR ^= (1 << SPIE);
-}
-
-void toggle_mode(const bool set_async = false) {
-	is_master ^= is_master;
-	SPI_DDR ^= SPI_CS_PIN_MASK;
-	SPI_PORT |= SPI_CS_PIN_MASK;
-	async = set_async;
-	SPCR = ((SPCR ^ (1 << MSTR)) & ~(1 << SPIE)) | (async << SPIE);
+bool set_spi_async(const bool set_async) {
+	// Only allow changing mode when idle
+    if (spi_status & SPI_STATE_BUS_ACTIVE_BIT_MASK) {
+        return false; // Cannot change mode while busy
+    }
+	uint8_t current_spcr = SPCR;
+    if (set_async) {
+        current_spcr |= (1 << SPIE);
+        spi_status = SPI_STATE_IDLE_ASYNC;
+    } else {
+        current_spcr &= ~(1 << SPIE);
+        spi_status = SPI_STATE_IDLE_SYNC;
+    }
+    SPCR = current_spcr;
+    return true;
 }
 
 bool master_transmit_sync(const uint8_t *data, const uint8_t len) {
+	if (spi_status != SPI_STATE_IDLE_SYNC) return false;
+	spi_status = SPI_STATE_BUSY_SYNC_TX;
+	SPI_PORT &= ~SPI_CS_PIN_MASK;
 	for (uint8_t i = 0; i < len; i++) {
 		SPDR = data[i];
 		// Poll for every byte
-		while (!(SPSR & (1 << SPIF))) {}
+		while (!(SPSR & (1 << SPIF))) {
+			// TODO: implement timeout and return false
+		}
+		volatile uint8_t temp __attribute__((unused)) = SPSR; // Read SPSR first per datasheet
+        temp = SPDR; // Then read SPDR to clear SPIF
 	}
+	SPI_PORT |= SPI_CS_PIN_MASK;
 	return true;
 }
 
-void master_transmit_async(const uint8_t *data, const uint8_t len) {
+bool master_transmit_async(const uint8_t *data, const uint8_t len) {
+	if (spi_status != SPI_STATE_IDLE_ASYNC) return false;
+	spi_status = SPI_STATE_BUSY_ASYNC_TX;
+	
 	for (uint8_t i = 0; i < len; ++i) {
 		tx_buffer[tx_buffer_end++] = data[i];
 	}
-	spi_mode = SPI_MODE_SEND;
+	
 	SPI_PORT &= ~SPI_CS_PIN_MASK;
-	TWDR = tx_buffer[tx_buffer_start++];
-}
-
-bool slave_receive_sync(uint8_t *data, const uint8_t len) {
-	for (uint8_t i = 0; i < len; i++) {
-		// Wait for byte transfer
-		while(!(SPSR & (1 << SPIF))) {
-			// delay_ms(100);
-		};
-		data[i] = SPDR;
-	}
+	SPDR = tx_buffer[tx_buffer_start++];
 	return true;
 }
 
-void slave_receive_async(uint8_t data[256], const uint8_t len) {
+bool master_receive_sync(uint8_t *data, const uint8_t len) {
+	if (spi_status != SPI_STATE_IDLE_SYNC) return false;
+	spi_status = SPI_STATE_BUSY_SYNC_RX;
+	SPI_PORT &= ~SPI_CS_PIN_MASK;
+
+	for (uint8_t i = 0; i < len; i++) {
+		// Wait for byte transfer
+		SPDR = SPI_DUMMY_BYTE;
+		while(!(SPSR & (1 << SPIF))) {
+			// delay_ms(100);
+			// TODO: implement timeout and return false
+		};
+		volatile uint8_t tmp __attribute__((unused)) = SPSR;
+		data[i] = SPDR;
+	}
+
+	SPI_PORT |= SPI_CS_PIN_MASK;
+	spi_status = SPI_STATE_IDLE_SYNC;
+	return true;
+}
+
+bool master_receive_async(volatile uint8_t *data, const uint8_t len) {
+	if (spi_status != SPI_STATE_IDLE_ASYNC) return false;
+	spi_status = SPI_STATE_BUSY_ASYNC_RX;
+	
 	rx_buffer = data;
 	rx_buffer_end = len;
 	rx_buffer_start = 0;
-	spi_mode = SPI_MODE_RECEIVE;
+	SPI_PORT &= ~SPI_CS_PIN_MASK;
+	SPDR = SPI_DUMMY_BYTE;
 	// TODO: signal wifi module to reply
+	return true;
 }
 
 // SPI Transfer complete interrupt / handler
 ISR(SPI_STC_vect) {
-	switch (spi_mode) {
-		case SPI_MODE_SEND: {
+	volatile uint8_t tmp __attribute__((unused)) = SPSR;
+	uint8_t recv_byte = SPDR;
+	switch (spi_status) {
+		case SPI_STATE_BUSY_ASYNC_TX: {
 			if (tx_buffer_start != tx_buffer_end) {
-				TWDR = tx_buffer[tx_buffer_start++];
+				SPDR = tx_buffer[tx_buffer_start++];
 			} else {
-				SPI_PORT |= SPI_CS_PIN_MASK;
-				spi_mode = SPI_MODE_READY;
+				// disable SPI on slave
+				SPI_PORT |= SPI_CS_PIN_MASK; 
+				// Signal completion and reset status to idle
+                spi_status = SPI_STATE_IDLE_ASYNC;   
 			}
 		} break;
-		case SPI_MODE_RECEIVE: {
+		case SPI_STATE_BUSY_ASYNC_RX: {
 			if (rx_buffer_start != rx_buffer_end) {
-				rx_buffer[rx_buffer_start++] = TWDR;
+				rx_buffer[rx_buffer_start++] = recv_byte;
+			} 
+			if (rx_buffer_start != rx_buffer_end) {
+				// Send next dummy byte to clock in next byte
+				SPDR = SPI_DUMMY_BYTE; 
 			} else {
-				
-				spi_mode = SPI_MODE_READY;
+				// disable SPI on slave
+				SPI_PORT |= SPI_CS_PIN_MASK;
+				// Signal completion and reset status to idle
+				spi_status = SPI_STATE_IDLE_ASYNC;  
 			}
-		} break;
-		case SPI_MODE_READY: {
-
-		} break;
+		} break; 
 		default:
-			DEBUG_PRINT("Got error ");
-			DEBUG_PRINTLN(spi_mode);
+			SPI_PORT |= SPI_CS_PIN_MASK;
+			DEBUG_PRINT("Got error");
 			break;
 	}
 }

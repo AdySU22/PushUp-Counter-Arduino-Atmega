@@ -31,6 +31,7 @@ int16_t main(void) {
 	init_lcd();
 
 	while (1) {
+		
 		write_str("HELLO FROM I2C");
 		delay_s(2);
 		clear_screen();
